@@ -1,0 +1,71 @@
+name: Backup Test
+
+on:
+  # schedule:
+    # - cron: "0 0 * * 0"  # Runs every Sunday at midnight; adjust as needed
+    # - cron: "0 0 1 * *"  # Runs on the first day of every month at midnight; adjust as needed
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/backup-test.yml
+  workflow_dispatch:
+
+# Allow one concurrent deployment
+concurrency:
+  group: backup
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+      - name: Setup Rclone
+        uses: BenjiThatFoxGuy/setup-bclone@v1
+        with:
+          rclone_config: ${{ secrets.RCLONE_CONFIG_B64 }}
+      - name: rclone
+        run: |
+          rclone copy ${{ secrets.source }} ${{ secrets.target }} --retries 10 --low-level-retries 3 --check-first --checkers 1000 --transfers 4 --metadata --cutoff-mode soft --tpslimit=1 --timeout=1h
+      - name: Dispatch Cleanup
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GH_TOKEN_2 }}
+          repository: ${{ github.repository_owner }}/${{ github.event.repository.name }}
+          event-type: deploy
+
+  sync2:
+    runs-on: ubuntu-latest
+    needs: sync
+    timeout-minutes: 30
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+      - name: Setup Rclone
+        uses: BenjiThatFoxGuy/setup-bclone@v1
+        with:
+          rclone_config: ${{ secrets.RCLONE_CONFIG_B64 }}
+      - name: rclone
+        run: |
+          rclone copy ${{ secrets.source2 }} ${{ secrets.target2 }} --retries 10 --low-level-retries 3 --check-first --checkers 1000 --transfers 4 --metadata --cutoff-mode soft --tpslimit=1 --timeout=1h
+      - name: Dispatch Cleanup
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GH_TOKEN_2 }}
+          repository: ${{ github.repository_owner }}/${{ github.event.repository.name }}
+          event-type: deploy
+
+  trigger-cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+      - name: Dispatch Cleanup
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GH_TOKEN_2 }}
+          repository: ${{ github.repository_owner }}/${{ github.event.repository.name }}
+          event-type: deploy
