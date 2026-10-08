@@ -1,0 +1,7 @@
+*.temp
+*.tmp
+*.partial
+*.crdownload
+DS_Store
+DSStore
+desktop.ini
