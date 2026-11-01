@@ -1,0 +1,50 @@
+name: Backup Archive
+
+on:
+  schedule:
+    - cron: "0 0 * * 0"  # Runs every Sunday at midnight; adjust as needed
+    # - cron: "0 0 1 * *"  # Runs on the first day of every month at midnight; adjust as needed
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/backup-archive.yml
+  workflow_dispatch:
+
+concurrency:
+  group: backup-archive
+  cancel-in-progress: false
+
+jobs:
+  sync0:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+      - name: Setup Rclone
+        uses: BenjiThatFoxGuy/setup-bclone@v1
+        with:
+          rclone_config: ${{ secrets.RCLONE_CONFIG_B64 }}
+      - name: Sync IA via rclone [0/6]
+        continue-on-error: true
+        run: |
+          rclone copy ${{ secrets.archivesource }} ${{ secrets.archivetarget }} --retries 10 --max-duration 30m --max-transfer 5G --low-level-retries 3 --internetarchive-wait-archive 30s --track-renames --check-first --checkers 10 --transfers 10 --metadata --cutoff-mode soft --metadata-exclude "source=metadata" --metadata-exclude "format=Metadata" --check-first --exclude="__ia_thumb.jpg" --exclude="___ia_thumb.jpg" --exclude="*.thumbs/**" --exclude="*_thumb.*" --tpslimit=0.9 --tpslimit-burst=3 --timeout=1h -vvvv -P --size-only
+      - name: Dispatch Cleanup
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GH_TOKEN_2 }}
+          repository: {{ github.repository_owner }}/${{ github.event.repository.name }}
+          event-type: deploy
+
+  trigger-cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+      - name: Dispatch Cleanup
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GH_TOKEN_2 }}
+          repository: {{ github.repository_owner }}/${{ github.event.repository.name }}
+          event-type: deploy
