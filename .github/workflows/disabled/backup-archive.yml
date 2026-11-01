@@ -23,7 +23,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
       - name: Setup Rclone
-        uses: BenjiThatFoxGuy/setup-bclone@v1
+        uses: BenjiThatFoxGuy/setup-bclone@v1.1.0
         with:
           rclone_config: ${{ secrets.RCLONE_CONFIG_B64 }}
       - name: Sync IA via rclone [0/6]
